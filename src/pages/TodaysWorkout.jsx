@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { MONDAY_WORKOUT, TUESDAY_WORKOUT } from '../data/workoutData'
+import { MONDAY_WORKOUT, TUESDAY_WORKOUT, WEDNESDAY_WORKOUT, THURSDAY_WORKOUT, FRIDAY_WORKOUT, SATURDAY_WORKOUT } from '../data/workoutData'
 
 // Block type → color styling
 const BLOCK_STYLES = {
@@ -15,7 +15,7 @@ const BLOCK_STYLES = {
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const WORKOUT_BY_DAY = { Mon: MONDAY_WORKOUT, Tue: TUESDAY_WORKOUT }
+const WORKOUT_BY_DAY = { Mon: MONDAY_WORKOUT, Tue: TUESDAY_WORKOUT, Wed: WEDNESDAY_WORKOUT, Thu: THURSDAY_WORKOUT, Fri: FRIDAY_WORKOUT, Sat: SATURDAY_WORKOUT }
 
 function SetTable({ exercise, setLogs, onSetChange }) {
   if (exercise.reps_unit === 'timed') {
