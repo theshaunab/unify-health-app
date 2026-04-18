@@ -19,7 +19,7 @@ export default function Layout() {
           </button>
           <span className="text-brand-offwhite font-semibold text-sm tracking-widest">UNIFY</span>
         </div>
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-hidden">
           <Outlet />
         </main>
       </div>
