@@ -7,6 +7,10 @@ import TodaysWorkout from './pages/TodaysWorkout'
 import Admin from './pages/Admin'
 import BodyComposition from './pages/BodyComposition'
 import Programs from './pages/Programs'
+import VO2Metabolic from './pages/VO2Metabolic'
+import StrengthVALD from './pages/StrengthVALD'
+import VideoLibrary from './pages/VideoLibrary'
+import GoalsHabits from './pages/GoalsHabits'
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
@@ -26,7 +30,11 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="workout" element={<TodaysWorkout />} />
             <Route path="body-composition" element={<BodyComposition />} />
+            <Route path="vo2" element={<VO2Metabolic />} />
+            <Route path="strength" element={<StrengthVALD />} />
             <Route path="programs" element={<Programs />} />
+            <Route path="videos" element={<VideoLibrary />} />
+            <Route path="goals" element={<GoalsHabits />} />
             <Route path="admin" element={<PrivateRoute adminOnly><Admin /></PrivateRoute>} />
           </Route>
         </Routes>
