@@ -2,17 +2,17 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
 const tierColors = {
-  full_access: 'bg-brand-sage text-brand-dark',
-  group_class: 'bg-brand-linen text-brand-dark',
+  full_access:       'bg-brand-sage text-brand-dark',
+  group_class:       'bg-brand-linen text-brand-dark',
   personal_training: 'bg-brand-gold text-brand-dark',
-  basic: 'bg-brand-surface text-brand-offwhite border border-white/10',
+  basic:             'bg-brand-surface text-brand-offwhite border border-white/10',
 }
 
 const tierLabels = {
-  full_access: 'Full Access',
-  group_class: 'Group Class',
+  full_access:       'Full Access',
+  group_class:       'Group Class',
   personal_training: 'Personal Training',
-  basic: 'Basic',
+  basic:             'Basic',
 }
 
 function NavItem({ to, label, icon }) {
@@ -72,27 +72,27 @@ export default function Sidebar({ collapsed, onClose }) {
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 overflow-y-auto">
         <NavSection title="My Health">
-          <NavItem to="/" label="Dashboard" icon="◈" />
+          <NavItem to="/"                 label="Dashboard"        icon="◈" />
           <NavItem to="/body-composition" label="Body composition" icon="◉" />
-          <NavItem to="/vo2" label="VO2 &amp; metabolic" icon="◎" />
-          <NavItem to="/strength" label="Strength &amp; VALD" icon="◆" />
-          <NavItem to="/movement" label="Movement screen" icon="◇" />
+          <NavItem to="/vo2"              label="VO2 & metabolic"  icon="◎" />
+          <NavItem to="/strength"         label="Strength & VALD"  icon="◆" />
         </NavSection>
 
         <NavSection title="Training">
-          <NavItem to="/workout" label="Today's workout" icon="▶" />
-          <NavItem to="/programs" label="Programs &amp; plans" icon="☰" />
-          <NavItem to="/videos" label="Video library" icon="⬡" />
-          <NavItem to="/webinars" label="Webinars" icon="⬡" />
+          <NavItem to="/workouts"  label="Workouts"        icon="▶" />
+          <NavItem to="/workout"   label="Today's session" icon="◈" />
+          <NavItem to="/programs"  label="Programs"        icon="☰" />
+          <NavItem to="/videos"    label="Video library"   icon="⬡" />
         </NavSection>
 
         <NavSection title="Daily">
-          <NavItem to="/goals" label="Goals &amp; habits" icon="◈" />
+          <NavItem to="/goals" label="Goals & habits" icon="◈" />
         </NavSection>
 
         {user?.role === 'admin' && (
           <NavSection title="Admin">
-            <NavItem to="/admin" label="Admin panel" icon="⚙" />
+            <NavItem to="/workout-builder" label="Workout builder" icon="✎" />
+            <NavItem to="/admin"           label="Admin panel"     icon="⚙" />
           </NavSection>
         )}
       </nav>
