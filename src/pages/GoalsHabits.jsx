@@ -1,35 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
 const INITIAL_GOALS = [
-  { id: 'g1', label: 'Get stronger', active: true },
+  { id: 'g1', label: 'Get stronger',            active: true },
   { id: 'g2', label: 'Be healthier & feel better', active: true },
-  { id: 'g3', label: 'Recover & rehab', active: false },
-]
-
-const INITIAL_HABITS = [
-  { id: 'h1', label: 'Complete today\'s workout', category: 'Training', streak: 5, completedToday: false },
-  { id: 'h2', label: 'Hit daily protein target (130g)', category: 'Nutrition', streak: 3, completedToday: true },
-  { id: 'h3', label: '7+ hours sleep', category: 'Recovery', streak: 2, completedToday: false },
-  { id: 'h4', label: 'Contrast therapy / recovery session', category: 'Recovery', streak: 1, completedToday: false },
-  { id: 'h5', label: '2L+ water', category: 'Nutrition', streak: 7, completedToday: true },
-  { id: 'h6', label: 'Morning mobility (10 min)', category: 'Training', streak: 0, completedToday: false },
-]
-
-const WEEKLY_CHECK = [
-  { day: 'M', done: true },
-  { day: 'T', done: true },
-  { day: 'W', done: true },
-  { day: 'T', done: true },
-  { day: 'F', done: false },
-  { day: 'S', done: false },
-  { day: 'S', done: false },
+  { id: 'g3', label: 'Recover & rehab',          active: false },
 ]
 
 const CATEGORY_COLORS = {
-  Training: 'text-brand-sage bg-brand-sage/10',
+  Training:  'text-brand-sage bg-brand-sage/10',
   Nutrition: 'text-brand-gold bg-brand-gold/10',
-  Recovery: 'text-blue-300 bg-blue-500/10',
+  Recovery:  'text-blue-300 bg-blue-500/10',
 }
+
+const today = new Date().toISOString().split('T')[0]
 
 function HabitRow({ habit, onToggle }) {
   return (
@@ -44,43 +29,78 @@ function HabitRow({ habit, onToggle }) {
       </button>
       <div className="flex-1 min-w-0">
         <p className={`text-sm ${habit.completedToday ? 'text-brand-offwhite/50 line-through' : 'text-brand-offwhite'}`}>{habit.label}</p>
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded mt-0.5 inline-block ${CATEGORY_COLORS[habit.category]}`}>{habit.category}</span>
+        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded mt-0.5 inline-block ${CATEGORY_COLORS[habit.category] || CATEGORY_COLORS.Training}`}>{habit.category}</span>
       </div>
-      <div className="text-right flex-shrink-0">
-        {habit.streak > 0 && (
-          <div className="flex items-center gap-1">
-            <span className="text-brand-gold text-xs">🔥</span>
-            <span className="text-brand-offwhite/50 text-xs">{habit.streak}d</span>
-          </div>
-        )}
-      </div>
+      {habit.streak > 0 && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="text-brand-gold text-xs">🔥</span>
+          <span className="text-brand-offwhite/50 text-xs">{habit.streak}d</span>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function GoalsHabits() {
-  const [habits, setHabits] = useState(INITIAL_HABITS)
-  const [goals] = useState(INITIAL_GOALS)
+  const { user } = useAuth()
+  const [habits, setHabits]     = useState([])
+  const [loading, setLoading]   = useState(true)
   const [newHabit, setNewHabit] = useState('')
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd]   = useState(false)
+  const [weekLogs, setWeekLogs] = useState([])
 
-  const completedCount = habits.filter(h => h.completedToday).length
-  const completionPct = Math.round((completedCount / habits.length) * 100)
+  // Load habits from Supabase
+  useEffect(() => {
+    if (!user?.id) return
+    const load = async () => {
+      const weekStart = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0]
+      const [{ data: habitsData }, { data: logsData }, { data: weekData }] = await Promise.all([
+        supabase.from('habits').select('*').eq('user_id', user.id).eq('active', true),
+        supabase.from('habit_logs').select('*').eq('user_id', user.id).eq('date', today),
+        supabase.from('workout_logs').select('date, completed').eq('user_id', user.id).gte('date', weekStart),
+      ])
+      const todayDone = new Set((logsData || []).filter(l => l.completed).map(l => l.habit_id))
+      // Use mock habits if none in DB yet
+      const base = habitsData?.length > 0 ? habitsData : [
+        { id: 'h1', label: "Complete today's workout",       category: 'Training',  streak: 5 },
+        { id: 'h2', label: 'Hit daily protein target (130g)', category: 'Nutrition', streak: 3 },
+        { id: 'h3', label: '7+ hours sleep',                  category: 'Recovery',  streak: 2 },
+        { id: 'h4', label: 'Contrast therapy session',        category: 'Recovery',  streak: 1 },
+        { id: 'h5', label: '2L+ water',                       category: 'Nutrition', streak: 7 },
+        { id: 'h6', label: 'Morning mobility (10 min)',        category: 'Training',  streak: 0 },
+      ]
+      setHabits(base.map(h => ({ ...h, completedToday: todayDone.has(h.id) })))
+      setWeekLogs(weekData || [])
+      setLoading(false)
+    }
+    load()
+  }, [user?.id])
 
-  const toggleHabit = (id) => {
-    setHabits(prev => prev.map(h =>
-      h.id === id ? { ...h, completedToday: !h.completedToday, streak: !h.completedToday ? h.streak + 1 : Math.max(0, h.streak - 1) } : h
-    ))
+  const toggleHabit = async (id) => {
+    const habit   = habits.find(h => h.id === id)
+    const newDone = !habit.completedToday
+    setHabits(prev => prev.map(h => h.id === id ? { ...h, completedToday: newDone, streak: newDone ? h.streak + 1 : Math.max(0, h.streak - 1) } : h))
+    await supabase.from('habit_logs').upsert({ habit_id: id, user_id: user.id, date: today, completed: newDone }, { onConflict: 'habit_id,date' })
   }
 
-  const addHabit = () => {
+  const addHabit = async () => {
     if (!newHabit.trim()) return
-    setHabits(prev => [...prev, {
-      id: `h${Date.now()}`, label: newHabit.trim(), category: 'Training', streak: 0, completedToday: false
-    }])
+    const { data } = await supabase.from('habits').insert({ user_id: user.id, label: newHabit.trim(), category: 'Training' }).select().single()
+    const newItem = data || { id: `h${Date.now()}`, label: newHabit.trim(), category: 'Training', streak: 0 }
+    setHabits(prev => [...prev, { ...newItem, completedToday: false }])
     setNewHabit('')
     setShowAdd(false)
   }
+
+  const completedCount  = habits.filter(h => h.completedToday).length
+  const completionPct   = habits.length > 0 ? Math.round((completedCount / habits.length) * 100) : 0
+  const weekDone        = new Set((weekLogs || []).filter(l => l.completed).map(l => l.date)).size
+
+  const WEEK_CHECK = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() - (6 - i) * 86400000)
+    const dateStr = d.toISOString().split('T')[0]
+    return { day: ['S','M','T','W','T','F','S'][d.getDay()], done: (weekLogs || []).some(l => l.date === dateStr && l.completed) }
+  })
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl overflow-y-auto h-full">
@@ -103,11 +123,11 @@ export default function GoalsHabits() {
         </p>
       </div>
 
-      {/* Weekly check-in */}
+      {/* Weekly check-in — real workout data */}
       <div className="bg-brand-surface border border-white/5 rounded-xl p-5 mb-6">
-        <p className="text-brand-offwhite/60 text-xs uppercase tracking-widest mb-3">This week</p>
+        <p className="text-brand-offwhite/60 text-xs uppercase tracking-widest mb-3">Workouts this week</p>
         <div className="flex gap-2">
-          {WEEKLY_CHECK.map((d, i) => (
+          {WEEK_CHECK.map((d, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${d.done ? 'bg-brand-sage text-brand-dark' : 'bg-white/5 text-brand-offwhite/30'}`}>
                 {d.done ? '✓' : d.day}
@@ -116,13 +136,14 @@ export default function GoalsHabits() {
             </div>
           ))}
         </div>
+        <p className="text-brand-offwhite/30 text-xs mt-3">{weekDone} session{weekDone !== 1 ? 's' : ''} completed this week</p>
       </div>
 
       {/* Goals */}
       <div className="mb-6">
         <p className="text-brand-offwhite/60 text-xs uppercase tracking-widest mb-3">My goals</p>
         <div className="space-y-2">
-          {goals.map(g => (
+          {INITIAL_GOALS.map(g => (
             <div key={g.id} className={`flex items-center gap-3 p-3 rounded-xl border ${g.active ? 'border-brand-sage/20 bg-brand-sage/5' : 'border-white/5 bg-brand-surface opacity-50'}`}>
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${g.active ? 'bg-brand-sage' : 'bg-white/20'}`} />
               <p className={`text-sm ${g.active ? 'text-brand-offwhite' : 'text-brand-offwhite/40'}`}>{g.label}</p>
@@ -135,14 +156,8 @@ export default function GoalsHabits() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-brand-offwhite/60 text-xs uppercase tracking-widest">Daily habits</p>
-          <button
-            onClick={() => setShowAdd(s => !s)}
-            className="text-brand-sage text-xs hover:text-brand-sage/70 transition-colors"
-          >
-            + Add habit
-          </button>
+          <button onClick={() => setShowAdd(s => !s)} className="text-brand-sage text-xs hover:opacity-70 transition-opacity">+ Add habit</button>
         </div>
-
         {showAdd && (
           <div className="flex gap-2 mb-3">
             <input
@@ -155,10 +170,13 @@ export default function GoalsHabits() {
             <button onClick={addHabit} className="bg-brand-sage text-brand-dark text-xs font-semibold px-4 py-2 rounded-lg hover:bg-brand-sage/90 transition-colors">Add</button>
           </div>
         )}
-
-        <div className="space-y-2">
-          {habits.map(h => <HabitRow key={h.id} habit={h} onToggle={() => toggleHabit(h.id)} />)}
-        </div>
+        {loading ? (
+          <div className="text-center py-8"><p className="text-brand-offwhite/30 text-sm">Loading habits...</p></div>
+        ) : (
+          <div className="space-y-2">
+            {habits.map(h => <HabitRow key={h.id} habit={h} onToggle={() => toggleHabit(h.id)} />)}
+          </div>
+        )}
       </div>
     </div>
   )
