@@ -7,26 +7,15 @@ const tierColors = {
   personal_training: 'bg-brand-gold text-brand-dark',
   basic:             'bg-brand-surface text-brand-offwhite border border-white/10',
 }
-
 const tierLabels = {
-  full_access:       'Full Access',
-  group_class:       'Group Class',
-  personal_training: 'Personal Training',
-  basic:             'Basic',
+  full_access: 'Full Access', group_class: 'Group Class',
+  personal_training: 'Personal Training', basic: 'Basic',
 }
 
 function NavItem({ to, label, icon }) {
   return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
-          isActive
-            ? 'bg-brand-sage/15 text-brand-sage font-medium'
-            : 'text-brand-offwhite/60 hover:text-brand-offwhite hover:bg-white/5'
-        }`
-      }
-    >
+    <NavLink to={to} className={({ isActive }) =>
+      `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${isActive ? 'bg-brand-sage/15 text-brand-sage font-medium' : 'text-brand-offwhite/60 hover:text-brand-offwhite hover:bg-white/5'}`}>
       <span className="w-4 text-center opacity-70">{icon}</span>
       {label}
     </NavLink>
@@ -35,30 +24,21 @@ function NavItem({ to, label, icon }) {
 
 function NavSection({ title, children }) {
   return (
-    <div className="mb-6">
-      <p className="px-4 mb-2 text-[10px] uppercase tracking-widest text-brand-offwhite/30 font-semibold">{title}</p>
+    <div className="mb-5">
+      <p className="px-4 mb-1.5 text-[10px] uppercase tracking-widest text-brand-offwhite/30 font-semibold">{title}</p>
       <div className="space-y-0.5">{children}</div>
     </div>
   )
 }
 
-export default function Sidebar({ collapsed, onClose }) {
+export default function Sidebar({ collapsed }) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
-
-  const handleSignOut = async () => {
-    await signOut()
-    navigate('/login')
-  }
+  const handleSignOut = async () => { await signOut(); navigate('/login') }
 
   return (
-    <aside
-      className={`flex flex-col h-full bg-brand-surface border-r border-white/5 transition-all duration-300 ${
-        collapsed ? 'w-0 overflow-hidden' : 'w-[200px]'
-      }`}
-      style={{ minWidth: collapsed ? 0 : 200 }}
-    >
-      {/* Logo */}
+    <aside className={`flex flex-col h-full bg-brand-surface border-r border-white/5 transition-all duration-300 ${collapsed ? 'w-0 overflow-hidden' : 'w-[200px]'}`}
+      style={{ minWidth: collapsed ? 0 : 200 }}>
       <div className="flex items-center gap-3 px-4 py-6 border-b border-white/5">
         <div className="w-9 h-9 rounded-full border-2 border-brand-sage flex items-center justify-center flex-shrink-0">
           <span className="text-brand-sage font-bold text-base">U</span>
@@ -69,7 +49,6 @@ export default function Sidebar({ collapsed, onClose }) {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-2 py-4 overflow-y-auto">
         <NavSection title="My Health">
           <NavItem to="/"                 label="Dashboard"        icon="◈" />
@@ -77,33 +56,28 @@ export default function Sidebar({ collapsed, onClose }) {
           <NavItem to="/vo2"              label="VO2 & metabolic"  icon="◎" />
           <NavItem to="/strength"         label="Strength & VALD"  icon="◆" />
         </NavSection>
-
         <NavSection title="Training">
           <NavItem to="/workouts"  label="Workouts"        icon="▶" />
           <NavItem to="/workout"   label="Today's session" icon="◈" />
           <NavItem to="/programs"  label="Programs"        icon="☰" />
           <NavItem to="/videos"    label="Video library"   icon="⬡" />
         </NavSection>
-
         <NavSection title="Daily">
           <NavItem to="/goals" label="Goals & habits" icon="◈" />
         </NavSection>
-
         {user?.role === 'admin' && (
-          <NavSection title="Admin">
+          <NavSection title="Staff">
+            <NavItem to="/staff"           label="Staff portal"    icon="★" />
             <NavItem to="/workout-builder" label="Workout builder" icon="✎" />
-            <NavItem to="/admin"           label="Admin panel"     icon="⚙" />
+            <NavItem to="/admin"           label="Member admin"    icon="⚙" />
           </NavSection>
         )}
       </nav>
 
-      {/* Member footer */}
       <div className="p-4 border-t border-white/5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-brand-sage/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-brand-sage text-xs font-bold">
-              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </span>
+            <span className="text-brand-sage text-xs font-bold">{user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-brand-offwhite text-xs font-medium truncate">{user?.name || 'Member'}</p>
@@ -111,13 +85,7 @@ export default function Sidebar({ collapsed, onClose }) {
               {tierLabels[user?.tier] || 'Member'}
             </span>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="text-brand-offwhite/30 hover:text-brand-offwhite/70 text-xs transition-colors"
-            title="Sign out"
-          >
-            ⎋
-          </button>
+          <button onClick={handleSignOut} className="text-brand-offwhite/30 hover:text-brand-offwhite/70 text-xs transition-colors" title="Sign out">⎋</button>
         </div>
       </div>
     </aside>
