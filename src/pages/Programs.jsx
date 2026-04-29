@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
 import { Link } from 'react-router-dom'
 import { MONDAY_WORKOUT, TUESDAY_WORKOUT, WEDNESDAY_WORKOUT, THURSDAY_WORKOUT, FRIDAY_WORKOUT, SATURDAY_WORKOUT } from '../data/workoutData'
 
