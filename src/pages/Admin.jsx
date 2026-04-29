@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -498,6 +498,25 @@ export default function Admin() {
 
   const [activeTab, setActiveTab] = useState('members')
   const [members, setMembers] = useState(INITIAL_MEMBERS)
+
+  // Load real members from Supabase on mount
+  useEffect(() => {
+    supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data?.length > 0) {
+          setMembers(data.map(m => ({
+            ...m,
+            joinDate:   m.created_at?.split('T')[0] || '—',
+            sessions:   0,
+            lastActive: m.last_active || '—',
+            status:     m.status || 'active',
+          })))
+        }
+      })
+  }, [])
 
   const handleAdd    = (m) => setMembers(prev => [...prev, m])
   const handleUpdate = (updated) => setMembers(prev => prev.map(m => m.id === updated.id ? updated : m))
