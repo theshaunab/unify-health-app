@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { MONDAY_WORKOUT, TUESDAY_WORKOUT, WEDNESDAY_WORKOUT, THURSDAY_WORKOUT, FRIDAY_WORKOUT, SATURDAY_WORKOUT } from '../data/workoutData'
 
 // ─── Tier access config ───────────────────────────────────────────────────────
@@ -236,7 +237,25 @@ function InStudioSection({ userTier }) {
 
 // ─── Section 2: Personal Workouts ────────────────────────────────────────────
 function PersonalSection() {
-  const [selected, setSelected] = useState(null)
+  const { user } = useAuth()
+  const [selected, setSelected]   = useState(null)
+  const [workouts, setWorkouts]   = useState([])
+  const [loading, setLoading]     = useState(true)
+
+  useEffect(() => {
+    if (!user?.id) return
+    supabase
+      .from('personal_workouts')
+      .select('*')
+      .eq('assigned_to', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        // Fall back to mock data if DB is empty
+        setWorkouts(data?.length > 0 ? data : PERSONAL_WORKOUTS)
+        setLoading(false)
+      })
+  }, [user?.id])
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -251,16 +270,20 @@ function PersonalSection() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {PERSONAL_WORKOUTS.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <p className="text-brand-offwhite/30 text-sm">Loading workouts...</p>
+            </div>
+          ) : workouts.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-3xl mb-3">📋</p>
               <p className="text-brand-offwhite/40 text-sm">No personal workouts yet.</p>
               <p className="text-brand-offwhite/25 text-xs mt-1">Shauna will assign workouts to you here.</p>
             </div>
           ) : (
-            PERSONAL_WORKOUTS.map(w => {
-              const blockCount = w.blocks.length
-              const exerciseCount = w.blocks.reduce((a, b) => a + b.exercises.length, 0)
+            workouts.map(w => {
+              const exerciseCount = (w.blocks || []).reduce((a, b) => a + (b.exercises?.length || 0), 0)
+              const dateStr = w.created_at || w.assignedDate
               return (
                 <button
                   key={w.id}
@@ -273,14 +296,16 @@ function PersonalSection() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-[9px] font-bold bg-brand-gold/20 text-brand-gold px-1.5 py-0.5 rounded tracking-wide">PERSONAL</span>
-                        <span className="text-brand-offwhite/30 text-xs">{new Date(w.assignedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        {dateStr && <span className="text-brand-offwhite/30 text-xs">{new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                       </div>
                       <p className="text-brand-offwhite font-medium text-sm">{w.name}</p>
                       <p className="text-brand-offwhite/40 text-xs mt-0.5">{exerciseCount} exercises · {w.focus}</p>
                     </div>
                     <span className="text-brand-gold text-sm flex-shrink-0 mt-0.5">→</span>
                   </div>
-                  <p className="text-brand-offwhite/30 text-xs mt-2.5 leading-relaxed line-clamp-2 italic">"{w.coachNote}"</p>
+                  {(w.coach_note || w.coachNote) && (
+                    <p className="text-brand-offwhite/30 text-xs mt-2.5 leading-relaxed line-clamp-2 italic">"{w.coach_note || w.coachNote}"</p>
+                  )}
                 </button>
               )
             })
@@ -299,12 +324,14 @@ function PersonalSection() {
             <button onClick={() => setSelected(null)} className="text-brand-offwhite/30 hover:text-brand-offwhite text-xl leading-none">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto p-5">
-            <div className="bg-brand-surface border border-white/5 rounded-xl p-4 mb-5">
-              <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-2">Coach note</p>
-              <p className="text-brand-offwhite/70 text-sm leading-relaxed italic">"{selected.coachNote}"</p>
-              <p className="text-brand-offwhite/30 text-xs mt-2">— Shauna</p>
-            </div>
-            {selected.blocks.map(block => <MiniBlock key={block.id} block={block} />)}
+            {(selected.coach_note || selected.coachNote) && (
+              <div className="bg-brand-surface border border-white/5 rounded-xl p-4 mb-5">
+                <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-2">Coach note</p>
+                <p className="text-brand-offwhite/70 text-sm leading-relaxed italic">"{selected.coach_note || selected.coachNote}"</p>
+                <p className="text-brand-offwhite/30 text-xs mt-2">— Shauna</p>
+              </div>
+            )}
+            {(selected.blocks || []).map(block => <MiniBlock key={block.id} block={block} />)}
           </div>
         </div>
       )}
