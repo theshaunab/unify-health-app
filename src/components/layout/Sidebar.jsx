@@ -15,7 +15,9 @@ const tierLabels = {
 function NavItem({ to, label, icon }) {
   return (
     <NavLink to={to} className={({ isActive }) =>
-      `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${isActive ? 'bg-brand-sage/15 text-brand-sage font-medium' : 'text-brand-offwhite/60 hover:text-brand-offwhite hover:bg-white/5'}`}>
+      `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${isActive
+        ? 'bg-brand-sage/15 text-brand-sage font-medium'
+        : 'text-brand-offwhite/60 hover:text-brand-offwhite hover:bg-white/5'}`}>
       <span className="w-4 text-center opacity-70">{icon}</span>
       {label}
     </NavLink>
@@ -36,9 +38,14 @@ export default function Sidebar({ collapsed }) {
   const navigate = useNavigate()
   const handleSignOut = async () => { await signOut(); navigate('/login') }
 
+  const isAdmin = user?.role === 'admin'
+  const isStaff = user?.role === 'staff'
+
   return (
     <aside className={`flex flex-col h-full bg-brand-surface border-r border-white/5 transition-all duration-300 ${collapsed ? 'w-0 overflow-hidden' : 'w-[200px]'}`}
       style={{ minWidth: collapsed ? 0 : 200 }}>
+
+      {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-6 border-b border-white/5">
         <div className="w-9 h-9 rounded-full border-2 border-brand-sage flex items-center justify-center flex-shrink-0">
           <span className="text-brand-sage font-bold text-base">U</span>
@@ -50,40 +57,62 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       <nav className="flex-1 px-2 py-4 overflow-y-auto">
-        <NavSection title="My Health">
-          <NavItem to="/"                 label="Dashboard"        icon="◈" />
-          <NavItem to="/body-composition" label="Body composition" icon="◉" />
-          <NavItem to="/vo2"              label="VO2 & metabolic"  icon="◎" />
-          <NavItem to="/strength"         label="Strength & VALD"  icon="◆" />
-        </NavSection>
-        <NavSection title="Training">
-          <NavItem to="/workouts"  label="Workouts"        icon="▶" />
-          <NavItem to="/workout"   label="Today's session" icon="◈" />
-          <NavItem to="/programs"  label="Programs"        icon="☰" />
-          <NavItem to="/videos"    label="Video library"   icon="⬡" />
-        </NavSection>
-        <NavSection title="Daily">
-          <NavItem to="/goals" label="Goals & habits" icon="◈" />
-        </NavSection>
-        {user?.role === 'admin' && (
+
+        {/* Member nav — shown to members and admins */}
+        {!isStaff && (
+          <>
+            <NavSection title="My Health">
+              <NavItem to="/"                 label="Dashboard"        icon="◈" />
+              <NavItem to="/body-composition" label="Body composition" icon="◉" />
+              <NavItem to="/vo2"              label="VO2 & metabolic"  icon="◎" />
+              <NavItem to="/strength"         label="Strength & VALD"  icon="◆" />
+            </NavSection>
+            <NavSection title="Training">
+              <NavItem to="/workouts"  label="Workouts"        icon="▶" />
+              <NavItem to="/workout"   label="Today's session" icon="◈" />
+              <NavItem to="/programs"  label="Programs"        icon="☰" />
+              <NavItem to="/videos"    label="Video library"   icon="⬡" />
+            </NavSection>
+            <NavSection title="Daily">
+              <NavItem to="/goals" label="Goals & habits" icon="◈" />
+            </NavSection>
+          </>
+        )}
+
+        {/* Staff nav — shown to staff and admins */}
+        {(isAdmin || isStaff) && (
           <NavSection title="Staff">
             <NavItem to="/staff"           label="Staff portal"    icon="★" />
             <NavItem to="/workout-builder" label="Workout builder" icon="✎" />
-            <NavItem to="/admin"           label="Member admin"    icon="⚙" />
           </NavSection>
         )}
+
+        {/* Admin only */}
+        {isAdmin && (
+          <NavSection title="Admin">
+            <NavItem to="/admin" label="Member admin" icon="⚙" />
+          </NavSection>
+        )}
+
       </nav>
 
+      {/* Footer */}
       <div className="p-4 border-t border-white/5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-brand-sage/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-brand-sage text-xs font-bold">{user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isStaff ? 'bg-blue-500/20' : 'bg-brand-sage/20'}`}>
+            <span className={`text-xs font-bold ${isStaff ? 'text-blue-300' : 'text-brand-sage'}`}>
+              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            </span>
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-brand-offwhite text-xs font-medium truncate">{user?.name || 'Member'}</p>
-            <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${tierColors[user?.tier] || tierColors.basic}`}>
-              {tierLabels[user?.tier] || 'Member'}
-            </span>
+            {isAdmin && <span className="inline-block text-[9px] px-1.5 py-0.5 rounded font-medium mt-0.5 bg-purple-500/20 text-purple-300">Admin</span>}
+            {isStaff && <span className="inline-block text-[9px] px-1.5 py-0.5 rounded font-medium mt-0.5 bg-blue-500/20 text-blue-300">Staff</span>}
+            {!isAdmin && !isStaff && (
+              <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${tierColors[user?.tier] || tierColors.basic}`}>
+                {tierLabels[user?.tier] || 'Member'}
+              </span>
+            )}
           </div>
           <button onClick={handleSignOut} className="text-brand-offwhite/30 hover:text-brand-offwhite/70 text-xs transition-colors" title="Sign out">⎋</button>
         </div>
