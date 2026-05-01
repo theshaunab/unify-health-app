@@ -3,12 +3,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-// ─── Config ───────────────────────────────────────────────────────────────────
 const TIER_CONFIG = {
-  full_access:       { label: 'Full Access',       color: 'bg-brand-sage/20 text-brand-sage',      dot: 'bg-brand-sage' },
-  personal_training: { label: 'Personal Training', color: 'bg-brand-gold/20 text-brand-gold',      dot: 'bg-brand-gold' },
-  group_class:       { label: 'Group Class',        color: 'bg-brand-linen/20 text-brand-linen',    dot: 'bg-brand-linen' },
-  basic:             { label: 'Basic',              color: 'bg-white/10 text-brand-offwhite/60',    dot: 'bg-white/30' },
+  full_access:       { label: 'Full Access',       color: 'bg-brand-sage/20 text-brand-sage',    dot: 'bg-brand-sage' },
+  personal_training: { label: 'Personal Training', color: 'bg-brand-gold/20 text-brand-gold',    dot: 'bg-brand-gold' },
+  group_class:       { label: 'Group Class',        color: 'bg-brand-linen/20 text-brand-linen',  dot: 'bg-brand-linen' },
+  basic:             { label: 'Basic',              color: 'bg-white/10 text-brand-offwhite/60',  dot: 'bg-white/30' },
 }
 
 const ROLE_CONFIG = {
@@ -18,16 +17,14 @@ const ROLE_CONFIG = {
 }
 
 const STAFF_ROLES = [
-  { value: 'coach',         label: 'Coach' },
-  { value: 'front_desk',    label: 'Front Desk' },
-  { value: 'physio',        label: 'Physiotherapist' },
-  { value: 'manager',       label: 'Manager' },
+  { value: 'coach',      label: 'Coach' },
+  { value: 'front_desk', label: 'Front Desk' },
+  { value: 'physio',     label: 'Physiotherapist' },
+  { value: 'manager',    label: 'Manager' },
 ]
 
-// ─── Email validator ──────────────────────────────────────────────────────────
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
-// ─── Shared UI ────────────────────────────────────────────────────────────────
 function TierBadge({ tier }) {
   const cfg = TIER_CONFIG[tier] || TIER_CONFIG.basic
   return <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded tracking-wide ${cfg.color}`}>{cfg.label}</span>
@@ -38,11 +35,11 @@ function RoleBadge({ role }) {
   return <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded tracking-wide ${cfg.color}`}>{cfg.label}</span>
 }
 
-function Avatar({ name, size = 'sm' }) {
+function Avatar({ name, size = 'sm', isStaff = false }) {
   const sz = size === 'lg' ? 'w-12 h-12 text-base' : 'w-8 h-8 text-xs'
   return (
-    <div className={`${sz} rounded-full bg-brand-sage/20 flex items-center justify-center flex-shrink-0`}>
-      <span className="text-brand-sage font-bold">{name?.charAt(0)?.toUpperCase() || '?'}</span>
+    <div className={`${sz} rounded-full flex items-center justify-center flex-shrink-0 ${isStaff ? 'bg-blue-500/20' : 'bg-brand-sage/20'}`}>
+      <span className={`font-bold ${isStaff ? 'text-blue-300' : 'text-brand-sage'}`}>{name?.charAt(0)?.toUpperCase() || '?'}</span>
     </div>
   )
 }
@@ -57,18 +54,17 @@ function StatCard({ label, value, sub, color = 'text-brand-offwhite' }) {
   )
 }
 
-// ─── Add Member Modal ─────────────────────────────────────────────────────────
 function AddMemberModal({ onClose, onAdd }) {
-  const [form, setForm]     = useState({ name: '', email: '', tier: 'basic', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', tier: 'basic', password: '' })
   const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState('')
+  const [error, setError] = useState('')
 
   const validate = () => {
-    if (!form.name.trim())          return 'Full name is required.'
-    if (!form.email.trim())         return 'Email is required.'
-    if (!isValidEmail(form.email))  return 'Please enter a valid email address.'
-    if (!form.password.trim())      return 'Password is required.'
-    if (form.password.length < 6)   return 'Password must be at least 6 characters.'
+    if (!form.name.trim())         return 'Full name is required.'
+    if (!form.email.trim())        return 'Email is required.'
+    if (!isValidEmail(form.email)) return 'Please enter a valid email address.'
+    if (!form.password.trim())     return 'Password is required.'
+    if (form.password.length < 6)  return 'Password must be at least 6 characters.'
     return null
   }
 
@@ -83,11 +79,9 @@ function AddMemberModal({ onClose, onAdd }) {
       })
       if (authError) throw authError
       const newMember = {
-        id:       data?.user?.id || `mock-${Date.now()}`,
-        name:     form.name.trim(),
-        email:    form.email.toLowerCase().trim(),
-        tier:     form.tier,
-        role:     'member',
+        id: data?.user?.id || `mock-${Date.now()}`,
+        name: form.name.trim(), email: form.email.toLowerCase().trim(),
+        tier: form.tier, role: 'member',
         joinDate: new Date().toISOString().split('T')[0],
         sessions: 0, lastActive: '—', status: 'active',
       }
@@ -113,9 +107,9 @@ function AddMemberModal({ onClose, onAdd }) {
         </div>
         <div className="space-y-4">
           {[
-            { label: 'Full name *',         key: 'name',     type: 'text',     placeholder: 'e.g. Jane Smith' },
-            { label: 'Email address *',     key: 'email',    type: 'email',    placeholder: 'jane@example.com' },
-            { label: 'Temporary password *',key: 'password', type: 'password', placeholder: 'Min 6 characters' },
+            { label: 'Full name *',          key: 'name',     type: 'text',     placeholder: 'e.g. Jane Smith' },
+            { label: 'Email address *',      key: 'email',    type: 'email',    placeholder: 'jane@example.com' },
+            { label: 'Temporary password *', key: 'password', type: 'password', placeholder: 'Min 6 characters' },
           ].map(f => (
             <div key={f.key}>
               <label className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest block mb-1.5">{f.label}</label>
@@ -131,7 +125,7 @@ function AddMemberModal({ onClose, onAdd }) {
               {Object.entries(TIER_CONFIG).map(([val, cfg]) => <option key={val} value={val}>{cfg.label}</option>)}
             </select>
           </div>
-          {error && <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">{error}</p>}
+          {error && <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">⚠️ {error}</p>}
           <button onClick={handleSubmit} disabled={loading}
             className="w-full bg-brand-sage text-brand-dark font-semibold py-3 rounded-xl text-sm hover:bg-brand-sage/90 transition-colors disabled:opacity-50">
             {loading ? 'Creating account...' : 'Create member account'}
@@ -142,11 +136,10 @@ function AddMemberModal({ onClose, onAdd }) {
   )
 }
 
-// ─── Add Staff Modal ──────────────────────────────────────────────────────────
 function AddStaffModal({ onClose, onAdd }) {
-  const [form, setForm]       = useState({ name: '', email: '', staffRole: 'coach', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', staffRole: 'coach', password: '' })
   const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [error, setError] = useState('')
 
   const validate = () => {
     if (!form.name.trim())         return 'Full name is required.'
@@ -168,23 +161,16 @@ function AddStaffModal({ onClose, onAdd }) {
       })
       if (authError) throw authError
       const newStaff = {
-        id:        data?.user?.id || `mock-staff-${Date.now()}`,
-        name:      form.name.trim(),
-        email:     form.email.toLowerCase().trim(),
-        role:      'staff',
-        staffRole: form.staffRole,
-        tier:      'full_access',
-        joinDate:  new Date().toISOString().split('T')[0],
-        status:    'active',
+        id: data?.user?.id || `mock-staff-${Date.now()}`,
+        name: form.name.trim(), email: form.email.toLowerCase().trim(),
+        role: 'staff', staffRole: form.staffRole, tier: 'full_access',
+        joinDate: new Date().toISOString().split('T')[0], status: 'active',
       }
       if (data?.user?.id) {
         await supabase.from('users').upsert({
-          id:         data.user.id,
-          email:      form.email.toLowerCase().trim(),
-          name:       form.name.trim(),
-          role:       'staff',
-          staff_role: form.staffRole,
-          tier:       'full_access',
+          id: data.user.id, email: form.email.toLowerCase().trim(),
+          name: form.name.trim(), role: 'staff',
+          staff_role: form.staffRole, tier: 'full_access',
         })
       }
       onAdd(newStaff); onClose()
@@ -202,7 +188,7 @@ function AddStaffModal({ onClose, onAdd }) {
           <button onClick={onClose} className="text-brand-offwhite/30 hover:text-brand-offwhite text-xl">✕</button>
         </div>
         <p className="text-brand-offwhite/40 text-xs mb-5 leading-relaxed">
-          Staff members can access the Staff Portal, Workout Builder, and Admin panel. They cannot see member health data.
+          Staff can access the Staff Portal and Workout Builder. They cannot see member health data.
         </p>
         <div className="space-y-4">
           {[
@@ -224,11 +210,7 @@ function AddStaffModal({ onClose, onAdd }) {
               {STAFF_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
-          {error && (
-            <div className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-              ⚠️ {error}
-            </div>
-          )}
+          {error && <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">⚠️ {error}</p>}
           <button onClick={handleSubmit} disabled={loading}
             className="w-full bg-blue-500 text-white font-semibold py-3 rounded-xl text-sm hover:bg-blue-500/90 transition-colors disabled:opacity-50">
             {loading ? 'Creating account...' : 'Add staff member'}
@@ -239,13 +221,12 @@ function AddStaffModal({ onClose, onAdd }) {
   )
 }
 
-// ─── Member detail panel ──────────────────────────────────────────────────────
 function MemberDetail({ member, onClose, onUpdate }) {
-  const [editTier, setEditTier]   = useState(member.tier)
+  const [editTier, setEditTier]     = useState(member.tier)
   const [editStatus, setEditStatus] = useState(member.status)
-  const [coachNote, setCoachNote] = useState('')
-  const [saved, setSaved]         = useState(false)
-  const [noteSaved, setNoteSaved] = useState(false)
+  const [coachNote, setCoachNote]   = useState('')
+  const [saved, setSaved]           = useState(false)
+  const [noteSaved, setNoteSaved]   = useState(false)
 
   const handleUpdate = async () => {
     try { await supabase.from('users').update({ tier: editTier }).eq('id', member.id) } catch {}
@@ -323,18 +304,16 @@ function MemberDetail({ member, onClose, onUpdate }) {
   )
 }
 
-// ─── Staff detail panel ───────────────────────────────────────────────────────
 function StaffDetail({ member, onClose, onRemove }) {
   const [removing, setRemoving] = useState(false)
   const [confirm, setConfirm]   = useState(false)
-  const staffRoleLabel = STAFF_ROLES.find(r => r.value === member.staffRole)?.label || member.staffRole || 'Staff'
+  const roleLabel = STAFF_ROLES.find(r => r.value === member.staffRole)?.label || 'Staff'
 
   const handleRemove = async () => {
     setRemoving(true)
     try {
       await supabase.from('users').update({ role: 'member' }).eq('id', member.id)
-      onRemove(member.id)
-      onClose()
+      onRemove(member.id); onClose()
     } catch {}
     setRemoving(false)
   }
@@ -343,15 +322,13 @@ function StaffDetail({ member, onClose, onRemove }) {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-start justify-between p-5 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-blue-300 font-bold text-base">{member.name?.charAt(0)?.toUpperCase()}</span>
-          </div>
+          <Avatar name={member.name} size="lg" isStaff />
           <div>
             <p className="text-brand-offwhite font-semibold text-base">{member.name}</p>
             <p className="text-brand-offwhite/40 text-xs">{member.email}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] font-bold bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">STAFF</span>
-              <span className="text-[10px] font-bold bg-white/10 text-brand-offwhite/50 px-2 py-0.5 rounded">{staffRoleLabel}</span>
+              <span className="text-[10px] font-bold bg-white/10 text-brand-offwhite/50 px-2 py-0.5 rounded">{roleLabel}</span>
             </div>
           </div>
         </div>
@@ -360,35 +337,33 @@ function StaffDetail({ member, onClose, onRemove }) {
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-brand-dark/60 border border-white/5 rounded-xl p-3 text-center">
-            <p className="text-brand-offwhite font-semibold text-sm">{staffRoleLabel}</p>
-            <p className="text-brand-offwhite/40 text-[10px] mt-0.5">Staff role</p>
+            <p className="text-brand-offwhite font-semibold text-sm">{roleLabel}</p>
+            <p className="text-brand-offwhite/40 text-[10px] mt-0.5">Role</p>
           </div>
           <div className="bg-brand-dark/60 border border-white/5 rounded-xl p-3 text-center">
             <p className="text-brand-offwhite font-semibold text-sm">{member.joinDate ? new Date(member.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</p>
             <p className="text-brand-offwhite/40 text-[10px] mt-0.5">Added</p>
           </div>
         </div>
-
         <div className="bg-brand-dark/40 border border-white/5 rounded-xl p-4">
-          <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-3">Staff access</p>
+          <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-3">Access permissions</p>
           <div className="space-y-2 text-sm">
             {[
-              { label: 'Staff portal',    access: true },
-              { label: 'Workout builder', access: true },
-              { label: 'Member admin',    access: true },
+              { label: 'Staff portal',       access: true },
+              { label: 'Workout builder',    access: true },
+              { label: 'Member admin',       access: true },
               { label: 'Member health data', access: false },
             ].map(a => (
               <div key={a.label} className="flex items-center justify-between">
                 <span className="text-brand-offwhite/60">{a.label}</span>
-                <span className={a.access ? 'text-brand-sage text-xs' : 'text-brand-offwhite/25 text-xs'}>{a.access ? '✓ Access' : '✕ No access'}</span>
+                <span className={`text-xs ${a.access ? 'text-brand-sage' : 'text-brand-offwhite/25'}`}>{a.access ? '✓ Access' : '✕ No access'}</span>
               </div>
             ))}
           </div>
         </div>
-
         <div className="bg-brand-dark/40 border border-red-400/10 rounded-xl p-4">
-          <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-3">Remove staff access</p>
-          <p className="text-brand-offwhite/40 text-xs mb-3">This will change their role to member. Their account will remain active.</p>
+          <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-2">Remove staff access</p>
+          <p className="text-brand-offwhite/40 text-xs mb-3">This will change their role to member. Their account stays active.</p>
           {!confirm ? (
             <button onClick={() => setConfirm(true)} className="w-full py-2 rounded-lg text-xs font-semibold border border-red-400/30 text-red-400/70 hover:text-red-400 hover:border-red-400/50 transition-colors">
               Remove staff access
@@ -410,13 +385,12 @@ function StaffDetail({ member, onClose, onRemove }) {
   )
 }
 
-// ─── Overview tab ─────────────────────────────────────────────────────────────
 function OverviewTab({ members, staff }) {
   const byTier = Object.keys(TIER_CONFIG).reduce((acc, tier) => {
     acc[tier] = members.filter(m => m.tier === tier).length
     return acc
   }, {})
-  const active        = members.filter(m => m.status === 'active').length
+  const active = members.filter(m => m.status === 'active').length
   const totalSessions = members.reduce((a, m) => a + (m.sessions || 0), 0)
 
   return (
@@ -431,7 +405,6 @@ function OverviewTab({ members, staff }) {
         <StatCard label="Staff members"  value={staff.length}   sub="Coaches & admin" color="text-blue-300" />
         <StatCard label="Total sessions" value={totalSessions}  sub="All time" />
       </div>
-
       <div className="bg-brand-surface border border-white/5 rounded-2xl p-5">
         <p className="text-brand-offwhite/50 text-[10px] uppercase tracking-widest mb-4">Members by tier</p>
         <div className="space-y-3">
@@ -455,16 +428,13 @@ function OverviewTab({ members, staff }) {
           })}
         </div>
       </div>
-
       {staff.length > 0 && (
         <div className="bg-brand-surface border border-white/5 rounded-2xl p-5">
           <p className="text-brand-offwhite/50 text-[10px] uppercase tracking-widest mb-4">Staff team</p>
           <div className="space-y-3">
             {staff.map(s => (
               <div key={s.id} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-blue-300 text-xs font-bold">{s.name?.charAt(0)?.toUpperCase()}</span>
-                </div>
+                <Avatar name={s.name} isStaff />
                 <div className="flex-1 min-w-0">
                   <p className="text-brand-offwhite text-sm truncate">{s.name}</p>
                   <p className="text-brand-offwhite/40 text-xs">{STAFF_ROLES.find(r => r.value === s.staffRole)?.label || 'Staff'}</p>
@@ -479,12 +449,11 @@ function OverviewTab({ members, staff }) {
   )
 }
 
-// ─── Members tab ──────────────────────────────────────────────────────────────
 function MembersTab({ members, onAdd, onUpdate }) {
-  const [search, setSearch]       = useState('')
+  const [search, setSearch]         = useState('')
   const [filterTier, setFilterTier] = useState('all')
-  const [selected, setSelected]   = useState(null)
-  const [showAdd, setShowAdd]     = useState(false)
+  const [selected, setSelected]     = useState(null)
+  const [showAdd, setShowAdd]       = useState(false)
 
   const filtered = members.filter(m => {
     const matchSearch = m.name?.toLowerCase().includes(search.toLowerCase()) || m.email?.toLowerCase().includes(search.toLowerCase())
@@ -498,10 +467,7 @@ function MembersTab({ members, onAdd, onUpdate }) {
         <div className="p-5 border-b border-white/5 flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-brand-offwhite font-semibold">{filtered.length} members</p>
-            <button onClick={() => setShowAdd(true)}
-              className="bg-brand-sage text-brand-dark text-xs font-semibold px-4 py-2 rounded-lg hover:bg-brand-sage/90 transition-colors">
-              + Add member
-            </button>
+            <button onClick={() => setShowAdd(true)} className="bg-brand-sage text-brand-dark text-xs font-semibold px-4 py-2 rounded-lg hover:bg-brand-sage/90 transition-colors">+ Add member</button>
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..."
             className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-brand-offwhite text-sm focus:outline-none focus:border-brand-sage/50 placeholder:text-brand-offwhite/20" />
@@ -514,13 +480,11 @@ function MembersTab({ members, onAdd, onUpdate }) {
             ))}
           </div>
         </div>
-
         <div className="grid grid-cols-12 px-5 py-2 border-b border-white/5 flex-shrink-0">
-          {['Member', 'Tier', 'Sessions', 'Last active', 'Status'].map((h, i) => (
+          {['Member','Tier','Sessions','Last active','Status'].map((h, i) => (
             <p key={h} className={`text-brand-offwhite/30 text-[10px] uppercase tracking-widest ${i === 0 ? 'col-span-4' : i === 1 ? 'col-span-3' : 'col-span-2 text-center'}`}>{h}</p>
           ))}
         </div>
-
         <div className="flex-1 overflow-y-auto divide-y divide-white/5">
           {filtered.map(m => (
             <button key={m.id} onClick={() => setSelected(m)}
@@ -547,20 +511,17 @@ function MembersTab({ members, onAdd, onUpdate }) {
           )}
         </div>
       </div>
-
       {selected && (
         <div className="flex-1 border-l border-white/5 overflow-hidden">
           <MemberDetail member={selected} onClose={() => setSelected(null)}
             onUpdate={updated => { onUpdate(updated); setSelected(updated) }} />
         </div>
       )}
-
       {showAdd && <AddMemberModal onClose={() => setShowAdd(false)} onAdd={m => { onAdd(m); setShowAdd(false) }} />}
     </div>
   )
 }
 
-// ─── Staff tab ────────────────────────────────────────────────────────────────
 function StaffTab({ staff, onAdd, onRemove }) {
   const [selected, setSelected] = useState(null)
   const [showAdd, setShowAdd]   = useState(false)
@@ -580,15 +541,11 @@ function StaffTab({ staff, onAdd, onRemove }) {
               <p className="text-brand-offwhite font-semibold">{staff.length} staff member{staff.length !== 1 ? 's' : ''}</p>
               <p className="text-brand-offwhite/40 text-xs mt-0.5">Coaches and admin with portal access</p>
             </div>
-            <button onClick={() => setShowAdd(true)}
-              className="bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-blue-500/90 transition-colors">
-              + Add staff
-            </button>
+            <button onClick={() => setShowAdd(true)} className="bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-blue-500/90 transition-colors">+ Add staff</button>
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search staff..."
             className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2 text-brand-offwhite text-sm focus:outline-none focus:border-brand-sage/50 placeholder:text-brand-offwhite/20" />
         </div>
-
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {filtered.length === 0 ? (
             <div className="text-center py-16">
@@ -603,9 +560,7 @@ function StaffTab({ staff, onAdd, onRemove }) {
                 <button key={s.id} onClick={() => setSelected(s)}
                   className={`w-full text-left p-4 rounded-xl border transition-all ${selected?.id === s.id ? 'border-blue-400/40 bg-blue-400/5' : 'border-white/5 bg-brand-surface hover:border-white/10'}`}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-300 font-bold">{s.name?.charAt(0)?.toUpperCase()}</span>
-                    </div>
+                    <Avatar name={s.name} isStaff />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-brand-offwhite font-medium text-sm truncate">{s.name}</p>
@@ -615,7 +570,6 @@ function StaffTab({ staff, onAdd, onRemove }) {
                       <p className="text-blue-300/60 text-xs mt-0.5">{roleLabel}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-brand-offwhite/30 text-xs">Added</p>
                       <p className="text-brand-offwhite/50 text-xs">{s.joinDate ? new Date(s.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</p>
                     </div>
                   </div>
@@ -625,22 +579,17 @@ function StaffTab({ staff, onAdd, onRemove }) {
           )}
         </div>
       </div>
-
       {selected && (
         <div className="flex-1 border-l border-white/5 overflow-hidden">
           <StaffDetail member={selected} onClose={() => setSelected(null)}
             onRemove={id => { onRemove(id); setSelected(null) }} />
         </div>
       )}
-
-      {showAdd && (
-        <AddStaffModal onClose={() => setShowAdd(false)} onAdd={s => { onAdd(s); setShowAdd(false) }} />
-      )}
+      {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onAdd={s => { onAdd(s); setShowAdd(false) }} />}
     </div>
   )
 }
 
-// ─── Main Admin page ──────────────────────────────────────────────────────────
 const TABS = [
   { id: 'overview', label: 'Overview', icon: '◈' },
   { id: 'members',  label: 'Members',  icon: '◉' },
@@ -660,7 +609,7 @@ export default function Admin() {
     supabase.from('users').select('*').order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data?.length > 0) {
-          const allUsers = data.map(m => ({
+          const all = data.map(m => ({
             ...m,
             joinDate:   m.created_at?.split('T')[0] || '—',
             sessions:   0,
@@ -668,21 +617,15 @@ export default function Admin() {
             status:     m.status || 'active',
             staffRole:  m.staff_role || null,
           }))
-          setMembers(allUsers.filter(u => u.role === 'member' || u.role === 'admin'))
-          setStaff(allUsers.filter(u => u.role === 'staff'))
+          setMembers(all.filter(u => u.role === 'member' || u.role === 'admin'))
+          setStaff(all.filter(u => u.role === 'staff'))
         }
         setLoading(false)
       })
   }, [])
 
-  const addMember = (m)  => setMembers(prev => [m, ...prev])
-  const addStaff  = (s)  => setStaff(prev => [s, ...prev])
-  const updateMember = (u) => setMembers(prev => prev.map(m => m.id === u.id ? u : m))
-  const removeStaff  = (id) => setStaff(prev => prev.filter(s => s.id !== id))
-
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left nav */}
       <div className="w-[180px] flex-shrink-0 border-r border-white/5 flex flex-col">
         <div className="p-5 border-b border-white/5">
           <p className="text-brand-offwhite font-semibold text-base">Admin panel</p>
@@ -705,8 +648,6 @@ export default function Admin() {
           <p className="text-brand-offwhite/50 text-xs mt-0.5 truncate">{user?.name}</p>
         </div>
       </div>
-
-      {/* Content */}
       <div className="flex-1 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -715,8 +656,8 @@ export default function Admin() {
         ) : (
           <>
             {activeTab === 'overview' && <OverviewTab members={members} staff={staff} />}
-            {activeTab === 'members'  && <MembersTab  members={members} onAdd={addMember} onUpdate={updateMember} />}
-            {activeTab === 'staff'    && <StaffTab    staff={staff}     onAdd={addStaff}  onRemove={removeStaff} />}
+            {activeTab === 'members'  && <MembersTab  members={members} onAdd={m => setMembers(p => [m,...p])} onUpdate={u => setMembers(p => p.map(m => m.id === u.id ? u : m))} />}
+            {activeTab === 'staff'    && <StaffTab    staff={staff}     onAdd={s => setStaff(p => [s,...p])}   onRemove={id => setStaff(p => p.filter(s => s.id !== id))} />}
           </>
         )}
       </div>
