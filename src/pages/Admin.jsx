@@ -310,13 +310,23 @@ function StaffDetail({ member, onClose, onRemove }) {
   const roleLabel = STAFF_ROLES.find(r => r.value === member.staffRole)?.label || 'Staff'
 
   const handleRemove = async () => {
-    setRemoving(true)
-    try {
-      await supabase.from('users').update({ role: 'member' }).eq('id', member.id)
-      onRemove(member.id); onClose()
-    } catch {}
-    setRemoving(false)
+  setRemoving(true)
+  try {
+    await supabase
+      .from('users')
+      .update({
+        role: 'member',
+        staff_role: null,
+      })
+      .eq('id', member.id)
+
+    onRemove(member.id)
+    onClose()
+  } catch (err) {
+    console.error(err)
   }
+  setRemoving(false)
+}
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
