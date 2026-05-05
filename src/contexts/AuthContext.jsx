@@ -13,96 +13,73 @@ export function AuthProvider({ children }) {
     const authUser = session.user
     const email = authUser.email?.toLowerCase()
 
-    try {
-      let { data: profile, error } = await supabase
-        .from('users')
-        .select('id, name, email, tier, role, avatar_url, staff_role')
-        .eq('id', authUser.id)
-        .maybeSingle()
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select('id, name, email, tier, role, avatar_url, staff_role')
+      .or(`id.eq.${authUser.id},email.eq.${email}`)
+      .maybeSingle()
 
-      if (!profile && email) {
-        const result = await supabase
-          .from('users')
-          .select('id, name, email, tier, role, avatar_url, staff_role')
-          .eq('email', email)
-          .maybeSingle()
-
-        profile = result.data
-        error = result.error
-      }
-
-      if (error) {
-        console.warn('Profile fetch error:', error.message)
-      }
-
-      if (profile) {
-        return {
-          ...authUser,
-          id: profile.id,
-          email: profile.email || email,
-          name: profile.name || email?.split('@')[0] || 'Member',
-          tier: profile.tier || 'basic',
-          role: profile.role || 'member',
-          staff_role: profile.staff_role || null,
-          avatar_url: profile.avatar_url || null,
-        }
-      }
-    } catch (err) {
-      console.warn('buildUser error:', err.message)
+    if (error) {
+      console.error('Profile fetch error:', error.message)
     }
 
     return {
       ...authUser,
-      name: email?.split('@')[0] || 'Member',
-      tier: 'basic',
-      role: 'member',
-      staff_role: null,
-      avatar_url: null,
+      name: profile?.name || email?.split('@')[0] || 'Member',
+      email: profile?.email || email,
+      tier: profile?.tier || 'basic',
+      role: profile?.role || 'member',
+      staff_role: profile?.staff_role || null,
+      avatar_url: profile?.avatar_url || null,
     }
   }
 
-  useEffect(() => {
-    const loadSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+  const loadUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
+    if (session) {
+      const appUser = await buildUser(session)
+      setUser(appUser)
+    } else {
+      setUser(null)
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        const u = await buildUser(session)
-        setUser(u)
+        const appUser = await buildUser(session)
+        setUser(appUser)
+      } else {
+        setUser(null)
       }
 
       setLoading(false)
-    }
-
-    loadSession()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          const u = await buildUser(session)
-          setUser(u)
-        } else {
-          setUser(null)
-        }
-
-        setLoading(false)
-      }
-    )
+    })
 
     return () => subscription.unsubscribe()
   }, [])
 
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.toLowerCase().trim(),
       password,
     })
 
     if (error) return { error }
 
-    const u = await buildUser(data.session)
-    setUser(u)
+    const appUser = await buildUser(data.session)
+    setUser(appUser)
 
-    return { error: null }
+    return { error: null, user: appUser }
   }
 
   const signOut = async () => {
@@ -111,12 +88,7 @@ export function AuthProvider({ children }) {
   }
 
   const refreshUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (session) {
-      const u = await buildUser(session)
-      setUser(u)
-    }
+    await loadUser()
   }
 
   return (
