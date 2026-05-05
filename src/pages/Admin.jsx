@@ -23,6 +23,22 @@ const STAFF_ROLES = [
   { value: 'manager',    label: 'Manager' },
 ]
 
+// Default permissions per staff_role
+const DEFAULT_PERMISSIONS = {
+  coach:      { view_clients: true,  assign_workouts: true,  upload_programs: true,  view_health_data: false, manage_members: false },
+  front_desk: { view_clients: true,  assign_workouts: false, upload_programs: false, view_health_data: false, manage_members: false },
+  physio:     { view_clients: true,  assign_workouts: true,  upload_programs: true,  view_health_data: true,  manage_members: false },
+  manager:    { view_clients: true,  assign_workouts: true,  upload_programs: true,  view_health_data: false, manage_members: true  },
+}
+
+const PERMISSION_LABELS = {
+  view_clients:      'View clients',
+  assign_workouts:   'Assign workouts',
+  upload_programs:   'Upload programs',
+  view_health_data:  'View health data',
+  manage_members:    'Manage members',
+}
+
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
 function TierBadge({ tier }) {
@@ -160,10 +176,12 @@ function AddStaffModal({ onClose, onAdd }) {
         password: form.password,
       })
       if (authError) throw authError
+      const defaultPerms = DEFAULT_PERMISSIONS[form.staffRole] || DEFAULT_PERMISSIONS.coach
       const newStaff = {
         id: data?.user?.id || `mock-staff-${Date.now()}`,
         name: form.name.trim(), email: form.email.toLowerCase().trim(),
         role: 'staff', staffRole: form.staffRole, tier: 'full_access',
+        permissions: defaultPerms,
         joinDate: new Date().toISOString().split('T')[0], status: 'active',
       }
       if (data?.user?.id) {
@@ -171,6 +189,7 @@ function AddStaffModal({ onClose, onAdd }) {
           id: data.user.id, email: form.email.toLowerCase().trim(),
           name: form.name.trim(), role: 'staff',
           staff_role: form.staffRole, tier: 'full_access',
+          permissions: defaultPerms,
         })
       }
       onAdd(newStaff); onClose()
@@ -180,6 +199,8 @@ function AddStaffModal({ onClose, onAdd }) {
     setLoading(false)
   }
 
+  const previewPerms = DEFAULT_PERMISSIONS[form.staffRole] || DEFAULT_PERMISSIONS.coach
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-brand-surface border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -188,7 +209,7 @@ function AddStaffModal({ onClose, onAdd }) {
           <button onClick={onClose} className="text-brand-offwhite/30 hover:text-brand-offwhite text-xl">✕</button>
         </div>
         <p className="text-brand-offwhite/40 text-xs mb-5 leading-relaxed">
-          Staff can access the Staff Portal and Workout Builder. They cannot see member health data.
+          Staff can access the Staff Portal. Permissions are set by their role and can be customised after adding.
         </p>
         <div className="space-y-4">
           {[
@@ -209,6 +230,20 @@ function AddStaffModal({ onClose, onAdd }) {
               className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-2.5 text-brand-offwhite text-sm focus:outline-none focus:border-brand-sage/50">
               {STAFF_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
+          </div>
+          {/* Live permission preview */}
+          <div className="bg-brand-dark/60 border border-white/5 rounded-xl p-3">
+            <p className="text-brand-offwhite/30 text-[10px] uppercase tracking-widest mb-2">Default permissions for this role</p>
+            <div className="space-y-1.5">
+              {Object.entries(PERMISSION_LABELS).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-brand-offwhite/50 text-xs">{label}</span>
+                  <span className={`text-xs font-medium ${previewPerms[key] ? 'text-brand-sage' : 'text-brand-offwhite/25'}`}>
+                    {previewPerms[key] ? '✓' : '✕'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
           {error && <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">⚠️ {error}</p>}
           <button onClick={handleSubmit} disabled={loading}
@@ -304,29 +339,42 @@ function MemberDetail({ member, onClose, onUpdate }) {
   )
 }
 
-function StaffDetail({ member, onClose, onRemove }) {
-  const [removing, setRemoving] = useState(false)
-  const [confirm, setConfirm]   = useState(false)
+function StaffDetail({ member, onClose, onRemove, onUpdate }) {
+  const [removing, setRemoving]   = useState(false)
+  const [confirm, setConfirm]     = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [permSaved, setPermSaved] = useState(false)
   const roleLabel = STAFF_ROLES.find(r => r.value === member.staffRole)?.label || 'Staff'
 
-  const handleRemove = async () => {
-  setRemoving(true)
-  try {
-    await supabase
-      .from('users')
-      .update({
-        role: 'member',
-        staff_role: null,
-      })
-      .eq('id', member.id)
+  // Load existing permissions or fall back to role defaults
+  const [perms, setPerms] = useState(
+    member.permissions || DEFAULT_PERMISSIONS[member.staffRole] || DEFAULT_PERMISSIONS.coach
+  )
 
-    onRemove(member.id)
-    onClose()
-  } catch (err) {
-    console.error(err)
+  const handleSavePerms = async () => {
+    setSaving(true)
+    try {
+      await supabase.from('users').update({ permissions: perms }).eq('id', member.id)
+      onUpdate({ ...member, permissions: perms })
+      setPermSaved(true)
+      setTimeout(() => setPermSaved(false), 2000)
+    } catch (err) {
+      console.error(err)
+    }
+    setSaving(false)
   }
-  setRemoving(false)
-}
+
+  const handleRemove = async () => {
+    setRemoving(true)
+    try {
+      await supabase.from('users').update({ role: 'member', staff_role: null, permissions: null }).eq('id', member.id)
+      onRemove(member.id)
+      onClose()
+    } catch (err) {
+      console.error(err)
+    }
+    setRemoving(false)
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -355,22 +403,30 @@ function StaffDetail({ member, onClose, onRemove }) {
             <p className="text-brand-offwhite/40 text-[10px] mt-0.5">Added</p>
           </div>
         </div>
+
+        {/* ── Editable Permissions ── */}
         <div className="bg-brand-dark/40 border border-white/5 rounded-xl p-4">
           <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-3">Access permissions</p>
-          <div className="space-y-2 text-sm">
-            {[
-              { label: 'Staff portal',       access: true },
-              { label: 'Workout builder',    access: true },
-              { label: 'Member admin',       access: true },
-              { label: 'Member health data', access: false },
-            ].map(a => (
-              <div key={a.label} className="flex items-center justify-between">
-                <span className="text-brand-offwhite/60">{a.label}</span>
-                <span className={`text-xs ${a.access ? 'text-brand-sage' : 'text-brand-offwhite/25'}`}>{a.access ? '✓ Access' : '✕ No access'}</span>
+          <div className="space-y-3">
+            {Object.entries(PERMISSION_LABELS).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between">
+                <span className="text-brand-offwhite/70 text-sm">{label}</span>
+                <button
+                  onClick={() => setPerms(p => ({ ...p, [key]: !p[key] }))}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${perms[key] ? 'bg-brand-sage' : 'bg-white/10'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${perms[key] ? 'translate-x-4' : 'translate-x-1'}`} />
+                </button>
               </div>
             ))}
           </div>
+          <button onClick={handleSavePerms} disabled={saving}
+            className={`mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${permSaved ? 'bg-brand-sage/20 text-brand-sage border border-brand-sage/30' : 'bg-brand-sage text-brand-dark hover:bg-brand-sage/90 disabled:opacity-50'}`}>
+            {permSaved ? '✓ Permissions saved' : saving ? 'Saving...' : 'Save permissions'}
+          </button>
         </div>
+
+        {/* ── Remove Staff Access ── */}
         <div className="bg-brand-dark/40 border border-red-400/10 rounded-xl p-4">
           <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-2">Remove staff access</p>
           <p className="text-brand-offwhite/40 text-xs mb-3">This will change their role to member. Their account stays active.</p>
@@ -532,7 +588,7 @@ function MembersTab({ members, onAdd, onUpdate }) {
   )
 }
 
-function StaffTab({ staff, onAdd, onRemove }) {
+function StaffTab({ staff, onAdd, onRemove, onUpdate }) {
   const [selected, setSelected] = useState(null)
   const [showAdd, setShowAdd]   = useState(false)
   const [search, setSearch]     = useState('')
@@ -566,6 +622,8 @@ function StaffTab({ staff, onAdd, onRemove }) {
           ) : (
             filtered.map(s => {
               const roleLabel = STAFF_ROLES.find(r => r.value === s.staffRole)?.label || 'Staff'
+              const perms = s.permissions || DEFAULT_PERMISSIONS[s.staffRole] || DEFAULT_PERMISSIONS.coach
+              const permCount = Object.values(perms).filter(Boolean).length
               return (
                 <button key={s.id} onClick={() => setSelected(s)}
                   className={`w-full text-left p-4 rounded-xl border transition-all ${selected?.id === s.id ? 'border-blue-400/40 bg-blue-400/5' : 'border-white/5 bg-brand-surface hover:border-white/10'}`}>
@@ -577,7 +635,7 @@ function StaffTab({ staff, onAdd, onRemove }) {
                         <span className="text-[9px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded flex-shrink-0">STAFF</span>
                       </div>
                       <p className="text-brand-offwhite/40 text-xs truncate">{s.email}</p>
-                      <p className="text-blue-300/60 text-xs mt-0.5">{roleLabel}</p>
+                      <p className="text-blue-300/60 text-xs mt-0.5">{roleLabel} · {permCount} permission{permCount !== 1 ? 's' : ''}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-brand-offwhite/50 text-xs">{s.joinDate ? new Date(s.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}</p>
@@ -592,7 +650,8 @@ function StaffTab({ staff, onAdd, onRemove }) {
       {selected && (
         <div className="flex-1 border-l border-white/5 overflow-hidden">
           <StaffDetail member={selected} onClose={() => setSelected(null)}
-            onRemove={id => { onRemove(id); setSelected(null) }} />
+            onRemove={id => { onRemove(id); setSelected(null) }}
+            onUpdate={updated => { onUpdate(updated); setSelected(updated) }} />
         </div>
       )}
       {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onAdd={s => { onAdd(s); setShowAdd(false) }} />}
@@ -606,19 +665,9 @@ const TABS = [
   { id: 'staff',    label: 'Staff',    icon: '★' },
 ]
 
+// ── FIXED: all hooks are now at the top, before any early returns ──
 export default function Admin() {
-  const { user } = useAuth()
-  if (loading) {
-  return (
-    <div className="flex items-center justify-center h-screen">
-      <p>Loading...</p>
-    </div>
-  )
-}
-
-if (user?.role !== 'admin') {
-  return <Navigate to="/" replace />
-}
+  const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState('members')
   const [members, setMembers]     = useState([])
   const [staff, setStaff]         = useState([])
@@ -630,11 +679,12 @@ if (user?.role !== 'admin') {
         if (data?.length > 0) {
           const all = data.map(m => ({
             ...m,
-            joinDate:   m.created_at?.split('T')[0] || '—',
-            sessions:   0,
-            lastActive: m.last_active || '—',
-            status:     m.status || 'active',
-            staffRole:  m.staff_role || null,
+            joinDate:    m.created_at?.split('T')[0] || '—',
+            sessions:    0,
+            lastActive:  m.last_active || '—',
+            status:      m.status || 'active',
+            staffRole:   m.staff_role || null,
+            permissions: m.permissions || null,
           }))
           setMembers(all.filter(u => u.role === 'member' || u.role === 'admin'))
           setStaff(all.filter(u => u.role === 'staff'))
@@ -642,6 +692,19 @@ if (user?.role !== 'admin') {
         setLoading(false)
       })
   }, [])
+
+  // Early returns AFTER all hooks
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-brand-offwhite/40 text-sm">Loading...</p>
+      </div>
+    )
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -653,7 +716,7 @@ if (user?.role !== 'admin') {
         <nav className="flex-1 p-3 space-y-1">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${activeTab === t.id ? 'bg-brand-surface text-brand-offwhite font-medium border border-white/8' : 'text-brand-offwhite/50 hover:text-brand-offwhite hover:bg-white/3'}`}>
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${activeTab === t.id ? 'bg-brand-surface text-brand-offwhite font-medium border border-white/10' : 'text-brand-offwhite/50 hover:text-brand-offwhite hover:bg-white/5'}`}>
               <span className="opacity-60">{t.icon}</span>
               {t.label}
               {t.id === 'staff' && staff.length > 0 && (
@@ -676,7 +739,7 @@ if (user?.role !== 'admin') {
           <>
             {activeTab === 'overview' && <OverviewTab members={members} staff={staff} />}
             {activeTab === 'members'  && <MembersTab  members={members} onAdd={m => setMembers(p => [m,...p])} onUpdate={u => setMembers(p => p.map(m => m.id === u.id ? u : m))} />}
-            {activeTab === 'staff'    && <StaffTab    staff={staff}     onAdd={s => setStaff(p => [s,...p])}   onRemove={id => setStaff(p => p.filter(s => s.id !== id))} />}
+            {activeTab === 'staff'    && <StaffTab    staff={staff} onAdd={s => setStaff(p => [s,...p])} onRemove={id => setStaff(p => p.filter(s => s.id !== id))} onUpdate={u => setStaff(p => p.map(s => s.id === u.id ? u : s))} />}
           </>
         )}
       </div>
