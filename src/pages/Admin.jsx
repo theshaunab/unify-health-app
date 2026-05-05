@@ -608,8 +608,17 @@ const TABS = [
 
 export default function Admin() {
   const { user } = useAuth()
-  if (user?.role !== 'admin') return <Navigate to="/" replace />
+  if (loading) {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <p>Loading...</p>
+    </div>
+  )
+}
 
+if (user?.role !== 'admin') {
+  return <Navigate to="/" replace />
+}
   const [activeTab, setActiveTab] = useState('members')
   const [members, setMembers]     = useState([])
   const [staff, setStaff]         = useState([])
