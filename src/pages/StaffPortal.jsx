@@ -10,12 +10,19 @@ const TIER_CONFIG = {
   basic:             { label: 'Basic',              color: 'bg-white/10 text-brand-offwhite/50',  dot: 'bg-white/20' },
 }
 
-const MOCK_MEMBERS = [
-  { id: 'f1027b40-eb9d-451f-ba67-cc0947024c5d', name: 'Shauna Brown', email: 'shauna@unifyaz.com', tier: 'full_access', sessions: 42, status: 'active' },
-  { id: '2', name: 'Emma Wilson',  email: 'emma@example.com',  tier: 'personal_training', sessions: 18, status: 'active' },
-  { id: '3', name: 'Tom Hughes',   email: 'tom@example.com',   tier: 'group_class',       sessions: 7,  status: 'active' },
-  { id: '4', name: 'Priya Sharma', email: 'priya@example.com', tier: 'basic',             sessions: 3,  status: 'active' },
-]
+// Default permissions fallback (matches Admin.jsx)
+const DEFAULT_PERMISSIONS = {
+  coach:      { view_clients: true,  assign_workouts: true,  upload_programs: true,  view_health_data: false, manage_members: false },
+  front_desk: { view_clients: true,  assign_workouts: false, upload_programs: false, view_health_data: false, manage_members: false },
+  physio:     { view_clients: true,  assign_workouts: true,  upload_programs: true,  view_health_data: true,  manage_members: false },
+  manager:    { view_clients: true,  assign_workouts: true,  upload_programs: true,  view_health_data: false, manage_members: true  },
+}
+
+function getPermissions(user) {
+  // Use saved permissions if available, otherwise fall back to role defaults
+  if (user?.permissions) return user.permissions
+  return DEFAULT_PERMISSIONS[user?.staff_role] || DEFAULT_PERMISSIONS.coach
+}
 
 function TierBadge({ tier }) {
   const cfg = TIER_CONFIG[tier] || TIER_CONFIG.basic
@@ -29,6 +36,21 @@ function Avatar({ name, size = 'md' }) {
       <span className="text-brand-sage font-bold">{name?.charAt(0)?.toUpperCase()}</span>
     </div>
   )
+}
+
+function PermissionGate({ allowed, message, children }) {
+  if (!allowed) {
+    return (
+      <div className="flex items-center justify-center py-10 px-4">
+        <div className="text-center">
+          <p className="text-2xl mb-2">🔒</p>
+          <p className="text-brand-offwhite/40 text-sm font-medium">Access restricted</p>
+          <p className="text-brand-offwhite/25 text-xs mt-1">{message || 'You do not have permission for this.'}</p>
+        </div>
+      </div>
+    )
+  }
+  return children
 }
 
 function AssignWorkoutModal({ member, onClose, onAssigned }) {
@@ -130,15 +152,11 @@ function UploadProgramModal({ member, onClose, onUploaded }) {
           <button onClick={onClose} className="text-brand-offwhite/30 hover:text-brand-offwhite text-xl">✕</button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {[
-            { label: 'Program name *', key: 'name', placeholder: 'e.g. 6-Week Home Strength' },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest block mb-1.5">{f.label}</label>
-              <input value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder}
-                className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2.5 text-brand-offwhite text-sm focus:outline-none focus:border-brand-sage/50 placeholder:text-brand-offwhite/20" />
-            </div>
-          ))}
+          <div>
+            <label className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest block mb-1.5">Program name *</label>
+            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. 6-Week Home Strength"
+              className="w-full bg-brand-dark border border-white/10 rounded-lg px-3 py-2.5 text-brand-offwhite text-sm focus:outline-none focus:border-brand-sage/50 placeholder:text-brand-offwhite/20" />
+          </div>
           <div>
             <label className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest block mb-1.5">Description *</label>
             <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3}
@@ -211,7 +229,7 @@ function MemberCard({ member, isSelected, onClick }) {
   )
 }
 
-function MemberPanel({ member, onClose }) {
+function MemberPanel({ member, onClose, permissions }) {
   const navigate = useNavigate()
   const [assignedWorkouts, setAssignedWorkouts] = useState([])
   const [programs, setPrograms] = useState([])
@@ -266,83 +284,139 @@ function MemberPanel({ member, onClose }) {
           ))}
         </div>
 
+        {/* Action buttons — only shown if permitted */}
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => setModal('workout')} className="bg-brand-sage text-brand-dark font-semibold py-3 rounded-xl text-sm hover:bg-brand-sage/90 transition-colors">+ Assign workout</button>
-          <button onClick={() => setModal('program')} className="bg-brand-gold text-brand-dark font-semibold py-3 rounded-xl text-sm hover:bg-brand-gold/90 transition-colors">+ Upload program</button>
-          <button onClick={() => navigate('/workout-builder')} className="col-span-2 border border-white/10 text-brand-offwhite/60 hover:text-brand-offwhite font-medium py-2.5 rounded-xl text-sm transition-colors">Build new workout →</button>
+          {permissions.assign_workouts && (
+            <button onClick={() => setModal('workout')} className="bg-brand-sage text-brand-dark font-semibold py-3 rounded-xl text-sm hover:bg-brand-sage/90 transition-colors">
+              + Assign workout
+            </button>
+          )}
+          {permissions.upload_programs && (
+            <button onClick={() => setModal('program')} className={`bg-brand-gold text-brand-dark font-semibold py-3 rounded-xl text-sm hover:bg-brand-gold/90 transition-colors ${!permissions.assign_workouts ? 'col-span-2' : ''}`}>
+              + Upload program
+            </button>
+          )}
+          {permissions.assign_workouts && (
+            <button onClick={() => navigate('/workout-builder')} className="col-span-2 border border-white/10 text-brand-offwhite/60 hover:text-brand-offwhite font-medium py-2.5 rounded-xl text-sm transition-colors">
+              Build new workout →
+            </button>
+          )}
         </div>
 
+        {/* Assigned workouts */}
         <div>
           <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-3">Assigned workouts ({assignedWorkouts.length})</p>
-          {loadingWorkouts ? (
-            <p className="text-brand-offwhite/25 text-xs text-center py-4">Loading...</p>
-          ) : assignedWorkouts.length === 0 ? (
-            <div className="border border-dashed border-white/10 rounded-xl p-5 text-center">
-              <p className="text-brand-offwhite/30 text-sm">No workouts assigned yet</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {assignedWorkouts.map(w => (
-                <div key={w.id} className="flex items-start gap-3 bg-brand-dark/40 border border-white/5 rounded-xl p-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-brand-offwhite text-sm font-medium">{w.name}</p>
-                    <p className="text-brand-offwhite/40 text-xs mt-0.5">{w.focus} · {w.blocks?.length || 0} blocks</p>
-                    {w.coach_note && <p className="text-brand-offwhite/25 text-xs mt-1 italic line-clamp-1">"{w.coach_note}"</p>}
+          <PermissionGate allowed={permissions.assign_workouts} message="You don't have permission to assign workouts.">
+            {loadingWorkouts ? (
+              <p className="text-brand-offwhite/25 text-xs text-center py-4">Loading...</p>
+            ) : assignedWorkouts.length === 0 ? (
+              <div className="border border-dashed border-white/10 rounded-xl p-5 text-center">
+                <p className="text-brand-offwhite/30 text-sm">No workouts assigned yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {assignedWorkouts.map(w => (
+                  <div key={w.id} className="flex items-start gap-3 bg-brand-dark/40 border border-white/5 rounded-xl p-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-brand-offwhite text-sm font-medium">{w.name}</p>
+                      <p className="text-brand-offwhite/40 text-xs mt-0.5">{w.focus} · {w.blocks?.length || 0} blocks</p>
+                      {w.coach_note && <p className="text-brand-offwhite/25 text-xs mt-1 italic line-clamp-1">"{w.coach_note}"</p>}
+                    </div>
+                    <button onClick={() => removeWorkout(w.id)} className="text-brand-offwhite/20 hover:text-red-400 text-xs transition-colors flex-shrink-0 mt-0.5">✕</button>
                   </div>
-                  <button onClick={() => removeWorkout(w.id)} className="text-brand-offwhite/20 hover:text-red-400 text-xs transition-colors flex-shrink-0 mt-0.5">✕</button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </PermissionGate>
         </div>
 
+        {/* Uploaded programs */}
         <div>
           <p className="text-brand-offwhite/40 text-[10px] uppercase tracking-widest mb-3">Uploaded programs ({programs.length})</p>
-          {programs.length === 0 ? (
-            <div className="border border-dashed border-white/10 rounded-xl p-5 text-center">
-              <p className="text-brand-offwhite/30 text-sm">No programs uploaded yet</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {programs.map(p => (
-                <div key={p.id} className="bg-brand-dark/40 border border-white/5 rounded-xl p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-brand-offwhite text-sm font-medium">{p.name}</p>
-                      <p className="text-brand-offwhite/40 text-xs mt-0.5">{p.weeks} weeks · {p.level}</p>
+          <PermissionGate allowed={permissions.upload_programs} message="You don't have permission to upload programs.">
+            {programs.length === 0 ? (
+              <div className="border border-dashed border-white/10 rounded-xl p-5 text-center">
+                <p className="text-brand-offwhite/30 text-sm">No programs uploaded yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {programs.map(p => (
+                  <div key={p.id} className="bg-brand-dark/40 border border-white/5 rounded-xl p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-brand-offwhite text-sm font-medium">{p.name}</p>
+                        <p className="text-brand-offwhite/40 text-xs mt-0.5">{p.weeks} weeks · {p.level}</p>
+                      </div>
+                      {p.price > 0 && <span className="text-brand-gold text-sm font-semibold flex-shrink-0">${p.price}</span>}
                     </div>
-                    {p.price > 0 && <span className="text-brand-gold text-sm font-semibold flex-shrink-0">${p.price}</span>}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </PermissionGate>
         </div>
       </div>
 
-      {modal === 'workout' && <AssignWorkoutModal member={member} onClose={() => setModal(null)} onAssigned={handleRefresh} />}
-      {modal === 'program' && <UploadProgramModal member={member} onClose={() => setModal(null)} onUploaded={handleRefresh} />}
+      {modal === 'workout' && permissions.assign_workouts && (
+        <AssignWorkoutModal member={member} onClose={() => setModal(null)} onAssigned={handleRefresh} />
+      )}
+      {modal === 'program' && permissions.upload_programs && (
+        <UploadProgramModal member={member} onClose={() => setModal(null)} onUploaded={handleRefresh} />
+      )}
     </div>
   )
 }
 
+// ── FIXED: all hooks at the top, staff + admin can access, permissions control what they see ──
 export default function StaffPortal() {
-  const { user } = useAuth()
-  if (user?.role !== 'admin') return <Navigate to="/" replace />
-
-  const [members, setMembers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user, loading: authLoading } = useAuth()
+  const [members, setMembers]   = useState([])
+  const [loading, setLoading]   = useState(true)
   const [selected, setSelected] = useState(null)
-  const [search, setSearch] = useState('')
-  const [modal, setModal] = useState(null)
+  const [search, setSearch]     = useState('')
+  const [modal, setModal]       = useState(null)
+
+  // Resolve permissions once user is loaded
+  const permissions = getPermissions(user)
 
   useEffect(() => {
-    supabase.from('users').select('*').order('created_at', { ascending: false })
+    if (!user) return
+    supabase.from('users')
+      .select('*')
+      .eq('role', 'member')
+      .order('created_at', { ascending: false })
       .then(({ data }) => {
-        setMembers(data?.length > 0 ? data.map(m => ({ ...m, sessions: 0 })) : MOCK_MEMBERS)
+        setMembers(data?.map(m => ({ ...m, sessions: 0 })) || [])
         setLoading(false)
       })
-  }, [])
+  }, [user])
+
+  // Early returns AFTER all hooks
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-brand-offwhite/40 text-sm">Loading...</p>
+      </div>
+    )
+  }
+
+  // Allow both admin and staff roles
+  if (user?.role !== 'admin' && user?.role !== 'staff') {
+    return <Navigate to="/" replace />
+  }
+
+  // Staff must have view_clients permission to access the portal at all
+  if (user?.role === 'staff' && !permissions.view_clients) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-4xl mb-3">🔒</p>
+          <p className="text-brand-offwhite/50 font-medium">Access restricted</p>
+          <p className="text-brand-offwhite/25 text-sm mt-1">You don't have permission to view clients.<br />Contact your admin to update your access.</p>
+        </div>
+      </div>
+    )
+  }
 
   const filtered = members.filter(m =>
     m.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -356,9 +430,18 @@ export default function StaffPortal() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-brand-offwhite font-semibold text-lg">Staff portal</h1>
-              <p className="text-brand-offwhite/40 text-xs mt-0.5">Assign workouts & upload programs</p>
+              <p className="text-brand-offwhite/40 text-xs mt-0.5">
+                {user?.role === 'staff'
+                  ? `Logged in as ${user?.staff_role || 'staff'}`
+                  : 'Admin view'}
+              </p>
             </div>
-            <button onClick={() => setModal('program')} className="bg-brand-gold text-brand-dark text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-gold/90 transition-colors">+ Upload program</button>
+            {/* Only show upload button if permitted */}
+            {permissions.upload_programs && (
+              <button onClick={() => setModal('program')} className="bg-brand-gold text-brand-dark text-xs font-bold px-3 py-2 rounded-lg hover:bg-brand-gold/90 transition-colors">
+                + Upload program
+              </button>
+            )}
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search members..."
             className="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-2.5 text-brand-offwhite text-sm focus:outline-none focus:border-brand-sage/50 placeholder:text-brand-offwhite/20" />
@@ -366,10 +449,10 @@ export default function StaffPortal() {
 
         <div className="grid grid-cols-4 divide-x divide-white/5 border-b border-white/5 flex-shrink-0">
           {[
-            { label: 'Total',      value: members.length },
-            { label: 'Full',       value: members.filter(m => m.tier === 'full_access').length },
-            { label: 'PT',         value: members.filter(m => m.tier === 'personal_training').length },
-            { label: 'Group',      value: members.filter(m => m.tier === 'group_class').length },
+            { label: 'Total',  value: members.length },
+            { label: 'Full',   value: members.filter(m => m.tier === 'full_access').length },
+            { label: 'PT',     value: members.filter(m => m.tier === 'personal_training').length },
+            { label: 'Group',  value: members.filter(m => m.tier === 'group_class').length },
           ].map(s => (
             <div key={s.label} className="p-3 text-center">
               <p className="text-brand-offwhite font-semibold text-base">{s.value}</p>
@@ -378,15 +461,35 @@ export default function StaffPortal() {
           ))}
         </div>
 
+        {/* Permission banner for staff */}
+        {user?.role === 'staff' && (
+          <div className="mx-4 mt-3 px-3 py-2 bg-blue-500/10 border border-blue-400/20 rounded-lg flex-shrink-0">
+            <p className="text-blue-300/70 text-[10px]">
+              Your access: {[
+                permissions.assign_workouts && 'Assign workouts',
+                permissions.upload_programs && 'Upload programs',
+                permissions.view_health_data && 'Health data',
+              ].filter(Boolean).join(' · ') || 'View only'}
+            </p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {loading ? <p className="text-brand-offwhite/30 text-sm text-center py-8">Loading members...</p>
-          : filtered.length === 0 ? <p className="text-brand-offwhite/30 text-sm text-center py-8">No members found.</p>
-          : filtered.map(m => <MemberCard key={m.id} member={m} isSelected={selected?.id === m.id} onClick={() => setSelected(m)} />)}
+          {loading
+            ? <p className="text-brand-offwhite/30 text-sm text-center py-8">Loading members...</p>
+            : filtered.length === 0
+            ? <p className="text-brand-offwhite/30 text-sm text-center py-8">No members found.</p>
+            : filtered.map(m => (
+                <MemberCard key={m.id} member={m} isSelected={selected?.id === m.id} onClick={() => setSelected(m)} />
+              ))
+          }
         </div>
       </div>
 
       {selected ? (
-        <div className="flex-1 overflow-hidden"><MemberPanel member={selected} onClose={() => setSelected(null)} /></div>
+        <div className="flex-1 overflow-hidden">
+          <MemberPanel member={selected} onClose={() => setSelected(null)} permissions={permissions} />
+        </div>
       ) : (
         <div className="flex-1 hidden lg:flex items-center justify-center border-l border-white/5">
           <div className="text-center">
@@ -397,7 +500,9 @@ export default function StaffPortal() {
         </div>
       )}
 
-      {modal === 'program' && <UploadProgramModal member={null} onClose={() => setModal(null)} onUploaded={() => setModal(null)} />}
+      {modal === 'program' && permissions.upload_programs && (
+        <UploadProgramModal member={null} onClose={() => setModal(null)} onUploaded={() => setModal(null)} />
+      )}
     </div>
   )
 }
