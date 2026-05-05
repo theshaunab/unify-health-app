@@ -35,19 +35,18 @@ export function AuthProvider({ children }) {
   }
 
   const loadUser = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+  const { data } = await supabase.auth.getUser()
 
-    if (session) {
-      const appUser = await buildUser(session)
-      setUser(appUser)
-    } else {
-      setUser(null)
-    }
-
-    setLoading(false)
+  if (data?.user) {
+    const session = await supabase.auth.getSession()
+    const appUser = await buildUser(session.data.session)
+    setUser(appUser)
+  } else {
+    setUser(null)
   }
+
+  setLoading(false)
+}
 
   useEffect(() => {
     loadUser()
